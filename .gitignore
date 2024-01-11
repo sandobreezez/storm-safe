@@ -16,6 +16,9 @@ Scripts/
 share/
 pyvenv.cfg
 
+# Test Code
+test_code/
+
 # Data directory
 data/
 archive/
