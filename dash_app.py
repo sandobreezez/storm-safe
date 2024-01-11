@@ -1,8 +1,12 @@
 import dash
+from dash import Dash
+
+app = Dash(__name__)
+
+# ... other necessary imports ...
 from dash import html, dcc, Input, Output, callback, dash_table
 import geopandas as gpd
 import pandas as pd
-# ... other necessary imports ...
 import plotly.express as px
 
 # Load storm shapes
