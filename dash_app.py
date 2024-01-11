@@ -86,11 +86,45 @@ app = dash.Dash(__name__)
 
 # Define the layout of the app
 app.layout = html.Div([
-    dcc.RadioItems(id='gran_select', options=['County', 'Zip Code'], value='County'),
-    html.Br(),
-    dcc.RadioItems(id='peril_select', options=['Convective Storms', 'Winter Storms'], value='Convective Storms'),
-    html.Br(),
-    dcc.RadioItems(id='category_select', options=['Test']),  # Update options via callback
+    html.Div([
+        html.Label('Granularity', style={'fontWeight': 'bold'}),
+        dcc.RadioItems(
+            id='gran_select',
+            options=[
+                {'label': 'County', 'value': 'County'},
+                {'label': 'Zip Code', 'value': 'Zip Code'}
+            ],
+            value='County',
+            labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
+            inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
+        ),
+        html.Br(),
+        html.Label('Weather Peril', style={'fontWeight': 'bold'}),
+        dcc.RadioItems(
+            id='peril_select',
+            options=[
+                {'label': 'Convective Storms', 'value': 'Convective Storms'},
+                {'label': 'Winter Storms', 'value': 'Winter Storms'}
+            ],
+            value='Convective Storms',
+            labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
+            inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
+        ),
+        html.Br(),
+        html.Label('Impact Category', style={'fontWeight': 'bold'}),
+        dcc.RadioItems(
+            id='category_select',
+            options=[{'label': 'Test', 'value': 'Test'}],  # Replace with dynamic options
+            labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
+            inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
+        ),
+        html.Br(),
+        # ... additional components ...
+    ], style={
+        'width': 'fit-content',
+        'display': 'inline-block',
+        'minHeight': '400px',  # Adjust minHeight as needed to keep consistent size
+    }),
     html.Br(),
     html.Div(id='plot',style={'width': '46%', 'display': 'inline-block', 'padding-right': '30px'}),  # Placeholder for the plot
 
@@ -191,5 +225,5 @@ def update_table(selected_peril, selected_granularity, selected_category):
     )
 
 
-# if __name__ == '__main__':
-#     app.run_server(debug=True)
+if __name__ == '__main__':
+    app.run_server(debug=True)

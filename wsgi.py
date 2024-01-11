@@ -1,4 +1,12 @@
-from dash_app import app
+import sys
 
-if __name__ == '__main__':
-    app.run_server(debug=True)
+# add your project directory to the sys.path
+project_home = u'/home/sandobreezez/storm-safe'
+if project_home not in sys.path:
+ sys.path = [project_home] + sys.path
+
+# need to pass the flask app as "application" for WSGI to work
+# for a dash app, that is at app.server
+# see https://plot.ly/dash/deployment
+from dash_app import app
+application = app.server

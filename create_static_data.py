@@ -6,19 +6,22 @@ from itertools import chain
 from shapely.geometry import Point
 from shapely.geometry import LineString
 
-state_gdf = gpd.read_file('data/tl_2022_us_state/tl_2022_us_state.shp')
+## Read input files
+state_gdf = gpd.read_file('static_data/inputs/tl_2022_us_state/tl_2022_us_state.shp')
+county_gdf = gpd.read_file('static_data/inputs/tl_2022_us_county/tl_2022_us_county.shp')
+zip_code_gdf = gpd.read_file('static_data/inputs/zip_code_coordinates/ZIP_Code_Population_Weighted_Centroids.geojson')
+
+## Create a map for STATE FIP --> STATE NAME, STATE Abrv
 state_fip_name_map = state_gdf[['STATEFP','STUSPS','NAME']].copy()
 state_fip_name_map = state_fip_name_map.rename(columns={'NAME':'STNAME'})
 
-# Replace 'counties.geojson' with the path to your data file
-county_gdf = gpd.read_file('data/tl_2022_us_county/tl_2022_us_county.shp')
-
+## Create a copy with necessary columns
 county_centroids = county_gdf[['STATEFP','COUNTYFP','GEOID','NAME','NAMELSAD','LSAD','INTPTLAT','INTPTLON']].copy()
 
-# Merge in State information
+## Merge in State information
 county_centroids = county_centroids.merge(state_fip_name_map, on='STATEFP', how='left')
 
-
+## Set the LAT LONG cols are type float
 county_centroids.loc[:, 'INTPTLAT'] = county_centroids['INTPTLAT'].astype(float)
 county_centroids.loc[:, 'INTPTLON'] = county_centroids['INTPTLON'].astype(float)
 
@@ -28,7 +31,7 @@ county_centroids['geometry'] = county_centroids.apply(lambda row: Point(row['INT
 # Now you have a GeoDataFrame with the 'geometry' column containing Point geometries.
 county_centroids = gpd.GeoDataFrame(county_centroids[['STATEFP','STUSPS','STNAME','COUNTYFP','GEOID','NAME','NAMELSAD','LSAD','geometry']].copy(), geometry='geometry')
 
-zip_code_gdf = gpd.read_file('data/zip_code_coordinates/ZIP_Code_Population_Weighted_Centroids.geojson')
+## Set up zip_code cols
 zip_code_gdf = zip_code_gdf.rename(columns={'USPS_ZIP_PREF_STATE_1221':'STUSPS','USPS_ZIP_PREF_CITY_1221':'CITYUSPS'})
 zip_code_centroids = zip_code_gdf[['STD_ZIP5','CITYUSPS','STUSPS','geometry']].copy()
 
@@ -36,8 +39,9 @@ zip_code_centroids = zip_code_gdf[['STD_ZIP5','CITYUSPS','STUSPS','geometry']].c
 zip_code_centroids = zip_code_centroids.merge(state_fip_name_map, on='STUSPS', how='left')
 zip_code_centroids = zip_code_centroids[['STATEFP','STUSPS','STNAME','CITYUSPS','STD_ZIP5','geometry']]
 
-county_centroids.to_file('data/block data/county_centroids.geojson', index=False, driver='GeoJSON')
-zip_code_centroids.to_file('data/block data/zip_code_centroids.geojson', index=False, driver='GeoJSON')
+## Output files that define a block (county, zipcode) as a point (it's centroid)
+county_centroids.to_file('static_data/outputs/county_centroids.geojson', index=False, driver='GeoJSON')
+zip_code_centroids.to_file('static_data/outputs/zip_code_centroids.geojson', index=False, driver='GeoJSON')
 
 ## Convective Storm Event Index ##
 conv_cat_map0 = pd.DataFrame({'event_index': [0],
