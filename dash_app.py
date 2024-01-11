@@ -1,8 +1,6 @@
 import dash
 from dash import Dash
 
-app = Dash(__name__)
-
 # ... other necessary imports ...
 from dash import html, dcc, Input, Output, callback, dash_table
 import geopandas as gpd
@@ -193,5 +191,5 @@ def update_table(selected_peril, selected_granularity, selected_category):
     )
 
 
-if __name__ == '__main__':
-    app.run_server(debug=True)
+# if __name__ == '__main__':
+#     app.run_server(debug=True)
