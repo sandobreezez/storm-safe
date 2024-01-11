@@ -1,0 +1,31 @@
+# created by virtualenv automatically
+
+# IDE settings
+.idea/
+
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+ENV/
+env/
+Lib/
+Scripts/
+share/
+pyvenv.cfg
+
+# Data directory
+data/
+archive/
+
+# Configuration directory
+etc/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# JetBrains specific
+*.iml
