@@ -113,6 +113,7 @@ def update_categories(selected_peril):
     Input('category_select', 'options')
 )
 
+## test github
 def update_category_selection(category_options):
     if category_options != []:
         return 1
