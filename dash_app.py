@@ -44,25 +44,40 @@ wint_cat_map = wint_cat_map[wint_cat_map['event_index'] > 0]
 #     )
 #     return fig
 
+wint_storm_discr_color_map = {
+    'LIMITED': '#1E90FF',  # Darker blue
+    'MINOR': '#00BFFF',    # Lighter blue
+    'MODERATE': '#FFFF00', # Yellow
+    'MAJOR': '#FFA500',    # Orange
+    'EXTREME': '#FF4500',  # Deeper red
+}
+
+conv_storm_discr_color_map = {
+    'TSTM': '#1E90FF',  # Darker blue
+    'MRGL': '#00BFFF',    # Lighter blue
+    'SLGT': '#00FF00',  # Bright green
+    'ENH': '#FFFF00',    # Yellow
+    'MDT': '#FFA500',    # Orange
+    'HIGH': '#FF4500',  # Deeper red
+}
+
 # Assuming gdf is your GeoDataFrame sorted by severity (more severe last)
-def create_plotly_figure(gdf):
+def create_plotly_figure(gdf, color_discrete_map):
     fig = px.choropleth_mapbox(
         gdf,
         geojson=gdf.geometry,
         locations=gdf.index,
-        color='category',  # Column denoting the severity
-        mapbox_style="carto-positron",
+        color='category',
+        color_discrete_map=color_discrete_map,  # Use the discrete color map
+        mapbox_style="open-street-map",  # Use OpenStreetMap style
         zoom=3,
-        center={"lat": 37.0902, "lon": -95.7129},  # Center of the United States
-        opacity=0.5
+        center={"lat": 37.0902, "lon": -95.7129},
+        opacity=0.7,
     )
 
-    #fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-
     fig.update_layout(
-        # Other layout parameters...
         title={
-            'text': "Storm Severity Map",  # Your title text
+            'text': "Storm Severity Map",
             'y': 0.98,
             'x': 0.5,
             'xanchor': 'center',
@@ -70,11 +85,11 @@ def create_plotly_figure(gdf):
         },
         margin={"r": 0, "t": 0, "l": 0, "b": 0},
         legend=dict(
-            x=0,  # Position legend on the left side of the plot
-            y=1,  # Position legend at the top of the plot
-            bgcolor='rgba(255, 255, 255, 0.5)',  # Optional: make legend background semi-transparent
+            x=0,
+            y=1,
+            bgcolor='rgba(255, 255, 255, 0.5)',
             bordercolor='Black',
-            orientation='v'  # Optional: 'v' for vertical, 'h' for horizontal
+            orientation='v'
         )
     )
     return fig
@@ -165,8 +180,10 @@ def update_plot(selected_peril, selected_category):
     # Use the appropriate GeoDataFrame based on the selected peril
     if selected_peril == "Convective Storms":
         gdf = conv_storm_shapes
+        color_map = conv_storm_discr_color_map
     elif selected_peril == "Winter Storms":
         gdf = wint_storm_shapes
+        color_map = wint_storm_discr_color_map
     else:
         return "Please select a peril to display the map."
 
@@ -174,7 +191,7 @@ def update_plot(selected_peril, selected_category):
     # ...
 
     # Create the plotly figure and return it
-    fig = create_plotly_figure(gdf)
+    fig = create_plotly_figure(gdf,color_map)
     return dcc.Graph(figure=fig)
 
 @app.callback(
