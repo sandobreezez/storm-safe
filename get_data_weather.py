@@ -85,9 +85,13 @@ conv_final_gdf = conv_agg_gdf.sort_values(by='event_index')
 conv_final_gdf = conv_final_gdf[conv_final_gdf['event_index'] > 0].reset_index(drop=True)
 print('Convective storm shapes sorted by event index')
 
+## Columns to keep
+county_cols_to_keep = ['NAMELSAD','STUSPS','geometry']
+zip_cols_to_keep = ['STD_ZIP5','STUSPS','COUNTYNAME','geometry']
+
 ## Find which counties & zipcodes are affected by convective storms in the next 8 days
-conv_county_membership = get_storm_table(conv_final_gdf,county_centroids,['NAMELSAD','STUSPS','geometry'])
-conv_zip_membership = get_storm_table(conv_final_gdf,zip_code_centroids,['STD_ZIP5','STUSPS','geometry'])
+conv_county_membership = get_storm_table(conv_final_gdf,county_centroids,county_cols_to_keep)
+conv_zip_membership = get_storm_table(conv_final_gdf,zip_code_centroids,zip_cols_to_keep)
 print('County and zipcode convective storm membership table created')
 
 ## Merge storm categories into blocks
@@ -171,8 +175,8 @@ print('Number of polygons in winter forecast reduced: ')
 print(polygon_count)
 
 ## Find which counties & zipcodes are affected by convective storms in the next 8 days
-wint_county_membership = get_storm_table(wint_final_gdf_reduced,county_centroids,['NAMELSAD','STUSPS','geometry'])
-wint_zip_membership = get_storm_table(wint_final_gdf_reduced,zip_code_centroids,['STD_ZIP5','STUSPS','geometry'])
+wint_county_membership = get_storm_table(wint_final_gdf_reduced,county_centroids,county_cols_to_keep)
+wint_zip_membership = get_storm_table(wint_final_gdf_reduced,zip_code_centroids,zip_cols_to_keep)
 print('Find which counties & zipcodes are affected by convective storms in the next 3 days')
 
 ## Merge storm categories into blocks
