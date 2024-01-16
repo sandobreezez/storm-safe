@@ -2,7 +2,8 @@ import dash
 from dash import Dash
 
 # ... other necessary imports ...
-from dash import html, dcc, Input, Output, callback, dash_table
+from dash import html, dcc, Input, Output, State, callback, dash_table
+import dash_extensions as de
 import geopandas as gpd
 import pandas as pd
 import plotly.express as px
@@ -94,6 +95,9 @@ def create_plotly_figure(gdf, color_discrete_map):
     )
     return fig
 
+def generate_csv(df):
+    return df.to_csv(index=False, encoding='utf-8')
+
 
 
 # Initialize the Dash app
@@ -101,49 +105,94 @@ app = dash.Dash(__name__)
 
 # Define the layout of the app
 app.layout = html.Div([
+    # html.Div([
+    #     html.Label('Granularity', style={'fontWeight': 'bold'}),
+    #     dcc.RadioItems(
+    #         id='gran_select',
+    #         options=[
+    #             {'label': 'County', 'value': 'County'},
+    #             {'label': 'Zip Code', 'value': 'Zip Code'}
+    #         ],
+    #         value='County',
+    #         labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
+    #         inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
+    #     ),
+    #     html.Br(),
+    #     html.Label('Weather Peril', style={'fontWeight': 'bold'}),
+    #     dcc.RadioItems(
+    #         id='peril_select',
+    #         options=[
+    #             {'label': 'Convective Storms', 'value': 'Convective Storms'},
+    #             {'label': 'Winter Storms', 'value': 'Winter Storms'}
+    #         ],
+    #         value='Convective Storms',
+    #         labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
+    #         inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
+    #     ),
+    #     html.Br(),
+    #     html.Label('Impact Category', style={'fontWeight': 'bold'}),
+    #     dcc.RadioItems(
+    #         id='category_select',
+    #         options=[{'label': 'Test', 'value': 'Test'}],  # Replace with dynamic options
+    #         labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
+    #         inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
+    #     ),
+    #     html.Br(),
+    #     # ... additional components ...
+    # ], style={
+    #     'width': 'fit-content',
+    #     'display': 'inline-block',
+    #     'minHeight': '400px',  # Adjust minHeight as needed to keep consistent size
+    # }),
+    # html.Br(),
     html.Div([
-        html.Label('Granularity', style={'fontWeight': 'bold'}),
-        dcc.RadioItems(
-            id='gran_select',
-            options=[
-                {'label': 'County', 'value': 'County'},
-                {'label': 'Zip Code', 'value': 'Zip Code'}
-            ],
-            value='County',
-            labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
-            inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
-        ),
-        html.Br(),
-        html.Label('Weather Peril', style={'fontWeight': 'bold'}),
-        dcc.RadioItems(
-            id='peril_select',
-            options=[
-                {'label': 'Convective Storms', 'value': 'Convective Storms'},
-                {'label': 'Winter Storms', 'value': 'Winter Storms'}
-            ],
-            value='Convective Storms',
-            labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
-            inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
-        ),
-        html.Br(),
-        html.Label('Impact Category', style={'fontWeight': 'bold'}),
-        dcc.RadioItems(
-            id='category_select',
-            options=[{'label': 'Test', 'value': 'Test'}],  # Replace with dynamic options
-            labelStyle={'display': 'block', 'margin': '6px 0'},  # Stack labels vertically with margin
-            inputStyle={"margin-right": "5px"},  # Spacing between radio button and label
-        ),
-        html.Br(),
-        # ... additional components ...
-    ], style={
-        'width': 'fit-content',
-        'display': 'inline-block',
-        'minHeight': '400px',  # Adjust minHeight as needed to keep consistent size
-    }),
-    html.Br(),
-    html.Div(id='plot',style={'width': '46%', 'display': 'inline-block', 'padding-right': '30px'}),  # Placeholder for the plot
+        # Existing controls
+        html.Div([
+            html.Label('Granularity', style={'fontWeight': 'bold'}),
+            dcc.RadioItems(
+                id='gran_select',
+                options=[
+                    {'label': 'County', 'value': 'County'},
+                    {'label': 'Zip Code', 'value': 'Zip Code'}
+                ],
+                value='County',
+                labelStyle={'display': 'block', 'margin': '6px 0'},
+                inputStyle={"margin-right": "5px"},
+            ),
+            html.Br(),
+            html.Label('Weather Peril', style={'fontWeight': 'bold'}),
+            dcc.RadioItems(
+                id='peril_select',
+                options=[
+                    {'label': 'Convective Storms', 'value': 'Convective Storms'},
+                    {'label': 'Winter Storms', 'value': 'Winter Storms'}
+                ],
+                value='Convective Storms',
+                labelStyle={'display': 'block', 'margin': '6px 0'},
+                inputStyle={"margin-right": "5px"},
+            ),
+            html.Br(),
+            html.Label('Impact Category', style={'fontWeight': 'bold'}),
+            dcc.RadioItems(
+                id='category_select',
+                options=[{'label': 'Test', 'value': 'Test'}],
+                labelStyle={'display': 'block', 'margin': '6px 0'},
+                inputStyle={"margin-right": "5px"},
+            ),
+        ], style={'display': 'inline-block', 'verticalAlign': 'top'}),
 
-    html.Div(id='filtered_data',style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding-left': '30px'})  # Placeholder for the table
+        # Download button
+        html.Div([
+            html.Button("Download Data", id="btn_csv")
+        ], style={'display': 'inline-block', 'margin-left': '20px', 'verticalAlign': 'top'}),
+    ], style={'display': 'flex'}),
+
+    html.Br(),
+
+    dcc.Store(id='stored-data'),
+    html.Div(id='plot',style={'width': '46%', 'display': 'inline-block', 'padding-right': '30px'}),  # Placeholder for the plot
+    html.Div(id='filtered_data',style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding-left': '30px'}),
+    dcc.Download(id="download-data"),
 ])
 
 @app.callback(
@@ -195,7 +244,7 @@ def update_plot(selected_peril, selected_category):
     return dcc.Graph(figure=fig)
 
 @app.callback(
-    Output('filtered_data', 'children'),
+    Output('stored-data', 'data'),
     [Input('peril_select', 'value'),
      Input('gran_select', 'value'),
      Input('category_select', 'value')]
@@ -229,9 +278,20 @@ def update_table(selected_peril, selected_granularity, selected_category):
         filtered_df['LAT'] = filtered_df['geometry'].y
         filtered_df['LONG'] = filtered_df['geometry'].x
     filtered_df = filtered_df.drop(columns=['geometry'], errors='ignore')
+    return filtered_df.to_dict('records')
+
+@app.callback(
+    Output('filtered_data', 'children'),
+    [Input('stored-data', 'data')]
+)
+
+def update_display_table(stored_data):
+    if stored_data is None:
+        raise dash.exceptions.PreventUpdate
+
     return dash_table.DataTable(
-        columns=[{"name": i, "id": i} for i in filtered_df.columns],
-        data=filtered_df.to_dict('records'),
+        columns=[{"name": i, "id": i} for i in stored_data[0].keys()],
+        data=stored_data,
         style_table={'overflowX': 'auto'},
         filter_action='native',  # Enable filtering
         sort_action='native', # Enable sorting
@@ -240,6 +300,24 @@ def update_table(selected_peril, selected_granularity, selected_category):
         page_current=0,
         page_size=20,
     )
+
+@app.callback(
+    Output("download-data", "data"),
+    Input("btn_csv", "n_clicks"),
+    State('stored-data', 'data'),  # Retrieve the stored data
+    prevent_initial_call=True
+)
+def download_data(n_clicks, stored_data):
+    if n_clicks is None or stored_data is None:
+        raise dash.exceptions.PreventUpdate
+
+    # Convert the stored data back to a DataFrame
+    df = pd.DataFrame.from_records(stored_data)
+
+    # Generate CSV string from DataFrame
+    csv_string = generate_csv(df)
+    return dict(content=csv_string, filename="filtered_data.csv")
+
 
 
 if __name__ == '__main__':
