@@ -50,7 +50,7 @@ zip_code_centroids = zip_code_centroids[['STATEFP','STUSPS','STNAME','COUNTYNAME
 
 ## Output files that define a block (county, zipcode) as a point (it's centroid)
 county_centroids.to_file('static_data/outputs/county_centroids.geojson', index=False, driver='GeoJSON')
-zip_code_centroids.to_file('static_data/outputs/zip_code_centroids.geojson', index=False, driver='GeoJSON')
+zip_code_centroids.to_file('static_data/outputs/zipcode_centroids.geojson', index=False, driver='GeoJSON')
 
 ## Convective Storm Event Index ##
 conv_cat_map0 = pd.DataFrame({'event_index': [0],

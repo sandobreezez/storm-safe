@@ -21,7 +21,8 @@ test_code/
 
 # Data directory
 data/
-archive/
+winter_storm_data/
+static_data/
 
 # Configuration directory
 etc/
