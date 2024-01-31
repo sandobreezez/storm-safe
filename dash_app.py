@@ -26,6 +26,8 @@ def load_files_to_dict_list(file_list,directory=''):
         if '.csv' in file_name:
             key = file_name.replace('.csv', '')
             loaded_file_dict[key] = pd.read_csv(file_path)
+            if 'STD_ZIP5' in loaded_file_dict[key].columns:
+                loaded_file_dict[key]['STD_ZIP5'] = loaded_file_dict[key]['STD_ZIP5'].astype(str).str.zfill(5)
         elif '.geojson' in file_name:
             key = file_name.replace('.geojson', '')
             loaded_file_dict[key] = gpd.read_file(file_path)
@@ -35,8 +37,10 @@ def load_files_to_dict_list(file_list,directory=''):
 static_data_directory = ''
 static_data_file_names = ['county_centroids.geojson','zipcode_centroids.geojson']
 static_data_dict = load_files_to_dict_list(static_data_file_names)
+print(static_data_dict)
 static_data_dict['county_centroids'] = static_data_dict['county_centroids'][['NAMELSAD','STUSPS','geometry']]
 static_data_dict['zipcode_centroids'] = static_data_dict['zipcode_centroids'][['STD_ZIP5','STUSPS','COUNTYNAME','geometry']]
+
 # county_cols_to_keep = ['NAMELSAD','STUSPS','geometry']
 # zip_cols_to_keep = ['STD_ZIP5','STUSPS','COUNTYNAME','geometry']
 
@@ -106,6 +110,10 @@ archive_dict = load_files_to_dict_list(archive_to_load,archive_directory)
 data_dictionary = {}
 data_dictionary['Latest'] = latest_dict
 data_dictionary['Archive'] = archive_dict
+print(static_data_dict['zipcode_centroids'])
+print(data_dictionary['Latest']['winter_storm_zipcode'])
+
+pd.merge(static_data_dict['zipcode_centroids'],data_dictionary['Latest']['winter_storm_zipcode'],on='STD_ZIP5',how='left')
 # def create_plotly_figure(gdf):
 #     # Assuming the geometry column has been converted to 'LAT' and 'LONG'
 #     fig = px.scatter_geo(
@@ -383,11 +391,13 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
     #current_max_index = float(input.category_select()) if input.category_select() is not None else float('inf')
 
     static_df_key = selected_granularity + '_centroids' ### grab either zipcode or county data
+    print(static_df_key)
     static_df = static_data_dict[static_df_key]
+    print(static_df)
     archive_value = '_issue_' + selected_archive if latest_or_archive == 'Archive' else ''
-    print(archive_value)
+    #print(archive_value)
     membership_filename = selected_peril + '_' + selected_granularity + archive_value
-    print(membership_filename)
+    #print(membership_filename)
 
     if membership_filename in data_dictionary[latest_or_archive].keys():
         ## if we find the key then use that df

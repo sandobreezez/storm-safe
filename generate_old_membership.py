@@ -166,3 +166,28 @@ conv_zip_membership.to_csv(conv_zip_file_name_arch, index=False)
 print('county and zipcode convective storm membership written out')
 
 
+##########################################################################
+wint_cat_map = pd.read_csv('winter_storm_cat_map.csv')
+
+directory_path = 'data_archive'
+# List all files and directories in the specified path
+entries = os.listdir(directory_path)
+# Filter out directories, keep only files
+file_names = [entry for entry in entries if os.path.isfile(os.path.join(directory_path, entry))]
+print(file_names)
+
+winter_file_names = [file for file in file_names if 'winter_storm' in file and '.csv' in file]
+print(winter_file_names)
+
+for file in winter_file_names:
+    winter_csv = pd.read_csv(directory_path + '/' + file)
+    print(file)
+    print(winter_csv.columns)
+    column_order = winter_csv.columns
+    winter_csv = winter_csv.drop(columns='category')
+    winter_csv = pd.merge(winter_csv,wint_cat_map,how='left',on='event_index')
+    winter_csv = winter_csv[column_order]
+    winter_csv.to_csv(directory_path + '/' + file, index=False)
+    print(winter_csv.columns)
+
+

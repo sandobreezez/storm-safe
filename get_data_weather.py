@@ -297,7 +297,7 @@ wint_storm_file_name_arch = 'data_archive/winter_storm_shapes_issue_' + str(scri
 wint_final_gdf_reduced.to_file(wint_storm_file_name_arch, index=False, driver='GeoJSON')
 print('save archive shapes')
 
-wint_county_membership = pd.merge(wint_county_membership,conv_cat_map,how='left',on='event_index')
+wint_county_membership = pd.merge(wint_county_membership,wint_cat_map,how='left',on='event_index')
 wint_county_membership = add_issue_times(wint_county_membership,wint_issue_time_dict)
 wint_county_membership.to_csv('winter_storm_county.csv', index=False)
 print('save latest county membership')
@@ -306,7 +306,7 @@ wint_county_file_name_arch = 'data_archive/winter_storm_county_issue_' + str(scr
 wint_county_membership.to_csv(wint_county_file_name_arch, index=False)
 print('save archive county membership')
 
-wint_zip_membership = pd.merge(wint_zip_membership,conv_cat_map,how='left',on='event_index')
+wint_zip_membership = pd.merge(wint_zip_membership,wint_cat_map,how='left',on='event_index')
 wint_zip_membership = add_issue_times(wint_zip_membership,wint_issue_time_dict)
 wint_zip_membership.to_csv('winter_storm_zipcode.csv', index=False)
 print('save latest county membership')
