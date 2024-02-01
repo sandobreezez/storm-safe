@@ -147,6 +147,9 @@ conv_storm_discr_color_map = {
     'MDT': '#FFA500',    # Orange
     'HIGH': '#FF4500',  # Deeper red
 }
+color_map_dict = {}
+color_map_dict['convective_storm'] = conv_storm_discr_color_map
+color_map_dict['winter_storm'] = wint_storm_discr_color_map
 
 # Assuming gdf is your GeoDataFrame sorted by severity (more severe last)
 def create_plotly_figure(gdf, color_discrete_map):
@@ -192,21 +195,12 @@ app = dash.Dash(__name__)
 
 # Define the layout of the app
 app.layout = html.Div([
+    html.Label(id='app_title', children='Real-time Moratorium Automation', style={'fontWeight': 'bold','fontSize': '32px','justifyContent': 'center'}),
+    html.Br(),
+    html.Br(),
     html.Div([
         # Existing controls
         html.Div([
-            html.Label('Granularity', style={'fontWeight': 'bold'}),
-            dcc.RadioItems(
-                id='gran_select',
-                options=[
-                    {'label': 'County', 'value': 'county'},
-                    {'label': 'Zip Code', 'value': 'zipcode'}
-                ],
-                value='county',
-                labelStyle={'display': 'block', 'margin': '6px 0'},
-                inputStyle={"margin-right": "5px"},
-            ),
-            html.Br(),
             html.Label('Weather Peril', style={'fontWeight': 'bold'}),
             dcc.RadioItems(
                 id='peril_select',
@@ -226,12 +220,22 @@ app.layout = html.Div([
                 labelStyle={'display': 'block', 'margin': '6px 0'},
                 inputStyle={"margin-right": "5px"},
             ),
-        ], style={'display': 'inline-block', 'verticalAlign': 'top'}),
+            html.Br(),
+            html.Label('Granularity', style={'fontWeight': 'bold'}),
+            dcc.RadioItems(
+                id='gran_select',
+                options=[
+                    {'label': 'County', 'value': 'county'},
+                    {'label': 'Zip Code', 'value': 'zipcode'}
+                ],
+                value='county',
+                labelStyle={'display': 'block', 'margin': '6px 0'},
+                inputStyle={"margin-right": "5px"},
+            )
+        ], style={'display': 'inline-block', 'verticalAlign': 'top', 'margin-right': '20px'}),
 
         # Download button
         html.Div([
-            html.Button("Download Data", id="btn_csv"),
-            html.Br(),
             html.Label('Issued', style={'fontWeight': 'bold'}),
             dcc.RadioItems(
                 id='latest_or_archive_select',
@@ -252,9 +256,34 @@ app.layout = html.Div([
                     value=str(max_issue_time_to_keep)
                 )
             ], id='archive_dropdown_container', style={'display': 'none', 'width' : '100%'})
-        ], style={'display': 'inline-block', 'margin-left': '20px', 'verticalAlign': 'top','width':'300px'}),
+        ], style={'display': 'inline-block', 'margin-left': '20px', 'verticalAlign': 'top','width':'250px'}),
 
-
+        html.Div([
+            html.Br()
+        ],style={'width': '28%', 'display': 'inline-block', 'padding-right': '30px','verticalAlign': 'top'}),
+        html.Div([
+            html.Div([
+                html.Br(), #1
+                html.Br(), #2
+                html.Br(), #3
+                html.Br(), #4
+                html.Br(), #5
+                html.Br(), #6
+                html.Br(), #7
+                html.Br(), #8
+                html.Br(), #9
+                html.Br(), #10
+                html.Br(), #11
+                html.Br(), #12
+                html.Br(), #13
+                html.Br(), #14
+                html.Br(), #15
+                html.Br(), #16
+                html.Br(), #17
+                html.Br(), #18
+                html.Button("Download Data", id="btn_csv")
+            ]),
+        ],style={'width': '20%', 'display': 'inline-block', 'padding-left': '30px'}),
     ], style={'display': 'flex'}),
 
     html.Br(),
@@ -263,9 +292,7 @@ app.layout = html.Div([
     html.Div([
         html.Div(id='plot'),
         html.Br(),
-        html.Label(id='issue_time', children='Issue Time: ', style={'fontWeight': 'bold'}),
-        html.Label(id='start_time', children='      Start Time: ', style={'fontWeight': 'bold'}),
-        html.Label(id='end_time', children='      End Time: ', style={'fontWeight': 'bold'})],
+        html.Div(id='issue_time_display')],
         style={'width': '46%', 'display': 'inline-block', 'padding-right': '30px','height': '570px','verticalAlign': 'top'}),  # Placeholder for the plot
     html.Div(id='filtered_data',style={'width': '50%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding-left': '30px'}),
     dcc.Download(id="download-data"),
@@ -307,9 +334,7 @@ def toggle_dropdown(selected_value):
         return {'display': 'none'}
 
 @app.callback(
-    [Output('issue_time', 'children'),
-     Output('start_time', 'children'),
-     Output('end_time', 'children')],
+    Output('issue_time_display', 'children'),
     [Input('peril_select', 'value'),
      Input('latest_or_archive_select','value'),
      Input('archive_dropdown','value')]
@@ -320,18 +345,22 @@ def update_issue_time_display(selected_peril,latest_or_archive,selected_archive)
     gdf_filename = selected_peril + '_shapes' + archive_value
     print(gdf_filename)
     gdf = data_dictionary[latest_or_archive][gdf_filename]
-    color_map = conv_storm_discr_color_map if selected_peril == 'convective_storm' else wint_storm_discr_color_map
+
 
     if gdf_filename in data_dictionary[latest_or_archive].keys():
-        ## if we find the key then use that df
         gdf = data_dictionary[latest_or_archive][gdf_filename]
+        issue_time = str(gdf['ISSUE_TIME'].iloc[0])
+        start_time = str(gdf['START_TIME'].iloc[0])
+        end_time = str(gdf['END_TIME'].iloc[0])
     else:
-        ## if we dont select the latest and 0 it out
-        membership_df = data_dictionary['Latest'][membership_filename.split('_issue_')[0]]
-        gdf = data_dictionary['Latest'][gdf_filename.split('_issue_')[0]]
-        gdf['geometry'] = [Polygon() for _ in range(len(gdf))]
-
-    return 'ISSUE_TIME: ' + str(gdf['ISSUE_TIME'].iloc[0]), '      START_TIME: ' + str(gdf['START_TIME'].iloc[0]), '      END_TIME: ' + str(gdf['END_TIME'].iloc[0])
+        issue_time = 'N/A'
+        start_time = 'N/A'
+        end_time = 'N/A'
+    return html.Div([
+        html.Span('ISSUE_TIME: ' + str(issue_time), style={'margin-right': '20px'}),
+        html.Span('START_TIME: ' + str(start_time), style={'margin-right': '20px'}),
+        html.Span('END_TIME: ' + str(end_time))
+    ],style={'fontWeight': 'bold'})
 
 @app.callback(
     Output('plot', 'children'),
@@ -345,33 +374,19 @@ def update_plot(selected_peril, selected_category,latest_or_archive,selected_arc
     # Use the appropriate GeoDataFrame based on the selected peril
     #if latest_or_archive == 'Latest' | type(selected_archive) != 'NoneType':
     archive_value = '_issue_' + selected_archive if latest_or_archive == 'Archive' else ''
-    print(archive_value)
     gdf_filename = selected_peril + '_shapes' + archive_value
-    print(gdf_filename)
-    gdf = data_dictionary[latest_or_archive][gdf_filename]
-    color_map = conv_storm_discr_color_map if selected_peril == 'convective_storm' else wint_storm_discr_color_map
 
+    #color_map = conv_storm_discr_color_map if selected_peril == 'convective_storm' else wint_storm_discr_color_map
+
+    color_map = color_map_dict[selected_peril]
     if gdf_filename in data_dictionary[latest_or_archive].keys():
         ## if we find the key then use that df
         gdf = data_dictionary[latest_or_archive][gdf_filename]
     else:
         ## if we dont select the latest and 0 it out
-        membership_df = data_dictionary['Latest'][membership_filename.split('_issue_')[0]]
-        gdf = data_dictionary['Latest'][gdf_filename.split('_issue_')[0]]
+        gdf = data_dictionary['Latest'][gdf_filename.split('_issue_')[0]].copy()
         gdf['geometry'] = [Polygon() for _ in range(len(gdf))]
-    # if selected_peril == "Convective Storms":
-    #     gdf = conv_storm_shapes
-    #     color_map = conv_storm_discr_color_map
-    # elif selected_peril == "Winter Storms":
-    #     gdf = wint_storm_shapes
-    #     color_map = wint_storm_discr_color_map
-    # else:
-    #     return "Please select a peril to display the map."
 
-    # Filter the GeoDataFrame as necessary
-    # ...
-
-    # Create the plotly figure and return it
     fig = create_plotly_figure(gdf,color_map)
     return dcc.Graph(figure=fig)
 
@@ -441,7 +456,13 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
         filtered_df['LAT'] = filtered_df['geometry'].y
         filtered_df['LONG'] = filtered_df['geometry'].x
     filtered_df = filtered_df.drop(columns=['geometry'], errors='ignore')
-    return filtered_df.to_dict('records')
+
+    stored_data = {
+        "records": filtered_df.to_dict('records'),
+        "columns": list(merged_df.columns)
+    }
+
+    return stored_data
 
 @app.callback(
     Output('filtered_data', 'children'),
@@ -449,19 +470,19 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
 )
 
 def update_display_table(stored_data):
-    if stored_data is None:
-        columns = []
-        stored_data = pd.DataFrame().to_dict('records')
-    else:
-        columns= [{"name": i, "id": i} for i in stored_data[0].keys()]
+    if not stored_data or 'records' not in stored_data or 'columns' not in stored_data:
+        return dash_table.DataTable()
+
+    data = stored_data['records']
+    columns = [{"name": col, "id": col} for col in stored_data['columns']]
 
     return dash_table.DataTable(
         columns=columns,
-        data=stored_data,
+        data=data,
         style_table={'overflowX': 'auto'},
-        filter_action='native',  # Enable filtering
-        sort_action='native', # Enable sorting
-        sort_mode='multi',  # Enable multi-column sorting (hold Shift key and click on additional columns)
+        filter_action='native',
+        sort_action='native',
+        sort_mode='multi',
         page_action='native',
         page_current=0,
         page_size=20,
