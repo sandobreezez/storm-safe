@@ -85,10 +85,11 @@ conv_archive_dict = load_files_to_dict_list(conv_shapes_file_names,directory_pat
 conv_archive_dict.keys()
 
 for conv_final_gdf_name in conv_archive_dict:
-    conv_final_gdf_name = 'convective_storm_shapes_issue_202401300600'
+    #conv_final_gdf_name = 'convective_storm_shapes_issue_202401300600'
+    conv_final_gdf = conv_archive_dict[conv_final_gdf_name]
     run_time = conv_final_gdf_name.split('issue_')[1]
     print(conv_final_gdf_name)
-    conv_final_gdf = conv_archive_dict[conv_final_gdf_name]
+
     if 'ISSUE_TIME' not in conv_final_gdf.columns:
         print('delete')
         print(conv_final_gdf_name)
