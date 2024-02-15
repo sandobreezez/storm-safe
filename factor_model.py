@@ -55,8 +55,48 @@ def combine_perils_for_metric(data,perils,start_index=43):
 
     return final_data
 
+conv_storm_expected = combine_perils_for_metric(fema_county_data,convective_storm_preffixes)
+wint_storm_expected = combine_perils_for_metric(fema_county_data,winter_storm_preffixes)
 
-test = combine_perils_for_metric(fema_county_data,convective_storm_preffixes)
+conv_county_membership = pd.read_csv('convective_storm_county.csv')
+wint_county_membership = pd.read_csv('winter_storm_county.csv')
+
+def split_last(x):
+    y = x.split(' ')[:-1]
+    z = ''
+    for e in y:
+        blank = ' ' if len(z) > 0 else ''
+        z = z + blank + e
+    return z
+
+
+set(list(conv_county_membership['NAMELSAD'].apply(split_last))) - set(list(conv_storm_expected['COUNTY']))
+
+conv_county_membership['COUNTY'] = conv_county_membership['NAMELSAD'].apply(split_last)
+wint_county_membership['COUNTY'] = wint_county_membership['NAMELSAD'].apply(split_last)
+
+conv_storm_expected_merge_ready = conv_storm_expected[['COUNTY','MY_PERIL_TOTAL_AFREQ','OTHER_PERIL_TOTAL_AFREQ','MY_PERIL_WEIGHTED_AVG_HLRB','OTHER_PERIL_WEIGHTED_AVG_HLRB']]
+wint_storm_expected_merge_ready = wint_storm_expected[['COUNTY','MY_PERIL_TOTAL_AFREQ','OTHER_PERIL_TOTAL_AFREQ','MY_PERIL_WEIGHTED_AVG_HLRB','OTHER_PERIL_WEIGHTED_AVG_HLRB']]
+
+
+
+## Convective Storm Event Index ##
+conv_cat_map0 = pd.DataFrame({'probability': [0],
+                         'category': ['N/S']})
+conv_cat_map1 = pd.DataFrame({'event_index': np.arange(1,7)*.1,
+                         'category': ['TSTM','MRGL','SLGT','ENH','MDT','HIGH']})
+conv_cat_map = pd.concat([conv_cat_map0,conv_cat_map1],ignore_index=True)
+conv_cat_map.to_csv('convective_storm_cat_map.csv',index=False)
+
+## Winter Storm Index ##
+wint_cat_map0 = pd.DataFrame({'probability': [0],
+                         'category': ['N/S']})
+wint_cat_map1 = pd.DataFrame({'event_index': np.arange(1,6)*.2,
+                         'category': ['LIMITED','MINOR','MODERATE','MAJOR','EXTREME']})
+wint_cat_map = pd.concat([wint_cat_map0,wint_cat_map1],ignore_index=True)
+wint_cat_map.to_csv('winter_storm_cat_map.csv',index=False)
+
+
 
 test2 = combine_perils_for_metric(fema_county_data,convective_storm_preffixes,annualized_frequency_suffix,'EALT')
 test['MY_PERIL_WEIGHTED_METRIC'].max()

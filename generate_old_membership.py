@@ -19,17 +19,8 @@ wint_cat_map = pd.read_csv('winter_storm_cat_map.csv')
 print('Ordered storm categories loaded')
 
 ## Load static files
-county_centroids = gpd.read_file('static_data/outputs/county_centroids.geojson')
-zip_code_centroids = gpd.read_file('static_data/outputs/zipcode_centroids.geojson')
-
-
-
-conv_day_20230331 = ['day1otlk_20230331_1630_cat.nolyr','day2otlk_20230331_1730_cat.nolyr']
-
-
-conv_base_url_123 = 'https://www.spc.noaa.gov/products/outlook/archive/2023/'
-conv_storm_urls = [conv_base_url_123 + file for file in conv_day_20230331]
-print('List of conv links created')
+county_centroids = gpd.read_file('county_centroids.geojson')
+zip_code_centroids = gpd.read_file('zipcode_centroids.geojson')
 
 def get_storm_table(storm_gdf,block_file,my_cols_keep):
 
@@ -62,132 +53,122 @@ def add_issue_times(my_df,time_dict):
         my_df[time_item] = time_dict[time_item]
     return my_df
 
-## Combine all convective storm geojsons into a single gdf
-for idx,link in enumerate(conv_storm_urls):
-    conv_storm_by_day_gdf = gpd.read_file(link)
-    conv_storm_by_day_gdf['outlook_day'] = idx + 1
-    if idx == 0:
-        conv_storm_gdf = conv_storm_by_day_gdf
-    else:
-        conv_storm_gdf = pd.concat([conv_storm_gdf, conv_storm_by_day_gdf], ignore_index=True)
-
-print('All 8 days of forecast of convective storms combined into a single gdf')
-
-def format_issue_time(x):
-    day = floor(x / 10000) * 10000
-    quarter_day_hour = ceil((x % 10000) / 600) * 600 ## {24, 18, 12, 6}
-    if (quarter_day_hour == 2400):
-        day = day + 10000
-        quarter_day_hour = 0
-    return day + quarter_day_hour
-
-conv_storm_issue_time = int(conv_storm_gdf['ISSUE'].max())
-conv_storm_issue_time = format_issue_time(conv_storm_issue_time)
-conv_storm_start_time = int(conv_storm_gdf['VALID'].min())
-conv_storm_end_time = int(conv_storm_gdf['EXPIRE'].max())
-conv_issue_time_dict = {'ISSUE_TIME' : conv_storm_issue_time, 'START_TIME' : conv_storm_start_time, 'END_TIME' : conv_storm_end_time}
-
-
-## Collapse the outlook day (combine the shapes by category)
-conv_agg_gdf = conv_storm_gdf[['LABEL','geometry']].dissolve(by='LABEL')
-conv_agg_gdf = conv_agg_gdf.reset_index()
-conv_agg_gdf = conv_agg_gdf.rename(columns={'LABEL':'category'})
-conv_agg_gdf = pd.merge(conv_agg_gdf,conv_cat_map,how='left',on='category')
-print('covective storm gdf dissolved by category')
-
-
-## Sort storm data by severity
-conv_final_gdf = conv_agg_gdf.sort_values(by='event_index')
-conv_final_gdf = conv_final_gdf[conv_final_gdf['event_index'] > 0].reset_index(drop=True)
-print('Convective storm shapes sorted by event index')
-
-# ## Columns to keep
-# county_cols_to_keep = ['NAMELSAD','STUSPS','geometry']
-# zip_cols_to_keep = ['STD_ZIP5','STUSPS','COUNTYNAME','geometry']
 
 ## Columns to keep
-county_cols_to_keep = ['NAMELSAD']
-zip_cols_to_keep = ['STD_ZIP5']
+county_cols_to_keep = ['NAMELSAD','STUSPS']
+zip_cols_to_keep = ['STD_ZIP5','STUSPS']
 print('County and zipcode to keep')
-
-## Find which counties & zipcodes are affected by convective storms in the next 8 days
-conv_county_membership = get_storm_table(conv_final_gdf,county_centroids,county_cols_to_keep)
-conv_zip_membership = get_storm_table(conv_final_gdf,zip_code_centroids,zip_cols_to_keep)
-print('County and zipcode convective storm membership table created')
-
-## Winter Storm Index ##
-# wint_cat_map0 = pd.DataFrame({'event_index': [0],
-#                          'category': ['N/S']})
-# wint_cat_map1 = pd.DataFrame({'event_index': np.arange(1,6),
-#                          'category': ['LIMITED','MINOR','MODERATE','MAJOR','EXTREME']})
-# wint_cat_map = pd.concat([wint_cat_map0,wint_cat_map1],ignore_index=True)
-
-
-
-import time
-from datetime import datetime, timezone
-
-def round_to_quarter_day(dt):
-    # Round the hour to the nearest 0, 6, 12, or 18
-    rounded_hour = (dt.hour // 6) * 6
-    return dt.replace(hour=rounded_hour, minute=0, second=0, microsecond=0)
-
-# Current time in UTC from time.time()
-current_utc_time = datetime.now(timezone.utc)
-
-# Round to the closest quarter day in UTC
-rounded_utc_datetime = round_to_quarter_day(current_utc_time)
-
-# Format to 'YYYYMMDDHHMM'
-formatted_utc_time = rounded_utc_datetime.strftime('%Y%m%d%H%M')
-print(formatted_utc_time)
-script_execution_time = formatted_utc_time
-
-
-## Write out the combined shapes of convective storms
-conv_final_gdf = add_issue_times(conv_final_gdf,conv_issue_time_dict)
-conv_storm_file_name_arch = 'data_archive/convective_storm_shapes_issue_' + str(202303311630) + '.geojson'
-conv_final_gdf.to_file(conv_storm_file_name_arch, index=False, driver='GeoJSON')
-print('convective storms shapes written out')
-
-## Merge storm categories into blocks
-conv_county_membership = pd.merge(conv_county_membership,conv_cat_map,how='left',on='event_index')
-conv_zip_membership = pd.merge(conv_zip_membership,conv_cat_map,how='left',on='event_index')
-print('Category merged into membership using event_index')
-
-## Write out the impact level for blocks
-conv_county_membership = add_issue_times(conv_county_membership,conv_issue_time_dict)
-conv_county_file_name_arch = 'data_archive/convective_storm_county_issue_' + str(202303311630) + '.csv'
-conv_county_membership.to_csv(conv_county_file_name_arch, index=False)
-
-conv_zip_membership = add_issue_times(conv_zip_membership,conv_issue_time_dict)
-conv_zip_file_name_arch = 'data_archive/convective_storm_zipcode_issue_' + str(202303311630) + '.csv'
-conv_zip_membership.to_csv(conv_zip_file_name_arch, index=False)
-print('county and zipcode convective storm membership written out')
-
-
-##########################################################################
-wint_cat_map = pd.read_csv('winter_storm_cat_map.csv')
 
 directory_path = 'data_archive'
 # List all files and directories in the specified path
 entries = os.listdir(directory_path)
 # Filter out directories, keep only files
 file_names = [entry for entry in entries if os.path.isfile(os.path.join(directory_path, entry))]
-print(file_names)
+conv_shapes_file_names = [file for file in file_names if 'convective_storm_shapes' in file]
+wint_shapes_file_names = [file for file in file_names if 'winter_storm_shapes' in file]
 
-winter_file_names = [file for file in file_names if 'winter_storm' in file and '.csv' in file]
-print(winter_file_names)
+def load_files_to_dict_list(file_list,directory=''):
+    loaded_file_dict = {}
+    for file_name in file_list:
+        file_path = directory + '/' + file_name
+        if '.csv' in file_name:
+            key = file_name.replace('.csv', '')
+            loaded_file_dict[key] = pd.read_csv(file_path)
+            if 'STD_ZIP5' in loaded_file_dict[key].columns:
+                loaded_file_dict[key]['STD_ZIP5'] = loaded_file_dict[key]['STD_ZIP5'].astype(str).str.zfill(5)
+        elif '.geojson' in file_name:
+            key = file_name.replace('.geojson', '')
+            loaded_file_dict[key] = gpd.read_file(file_path)
+    return loaded_file_dict
 
-for file in winter_file_names:
-    winter_csv = pd.read_csv(directory_path + '/' + file)
-    print(file)
-    print(winter_csv.columns)
-    column_order = winter_csv.columns
-    winter_csv = winter_csv.drop(columns='category')
-    winter_csv = pd.merge(winter_csv,wint_cat_map,how='left',on='event_index')
-    winter_csv = winter_csv[column_order]
-    winter_csv.to_csv(directory_path + '/' + file, index=False)
-    print(winter_csv.columns)
+conv_archive_dict = load_files_to_dict_list(conv_shapes_file_names,directory_path)
+conv_archive_dict.keys()
+
+for conv_final_gdf_name in conv_archive_dict:
+    conv_final_gdf_name = 'convective_storm_shapes_issue_202401300600'
+    run_time = conv_final_gdf_name.split('issue_')[1]
+    print(conv_final_gdf_name)
+    conv_final_gdf = conv_archive_dict[conv_final_gdf_name]
+    if 'ISSUE_TIME' not in conv_final_gdf.columns:
+        print('delete')
+        print(conv_final_gdf_name)
+        os.remove('data_archive/convective_storm_shapes_issue_' + run_time + '.geojson')
+        os.remove('data_archive/convective_storm_county_issue_' + run_time + '.csv') if os.path.isfile('data_archive/convective_storm_county_issue_' + run_time + '.csv') else print('county file not found')
+        os.remove('data_archive/convective_storm_zipcode_issue_' + run_time + '.csv') if os.path.isfile('data_archive/convective_storm_zipcode_issue_' + run_time + '.csv') else print('zipcode file not found')
+        print('files deleted')
+        continue
 
 
+    conv_issue_time_dict = {'ISSUE_TIME': conv_final_gdf['ISSUE_TIME'].iloc[0],
+                            'START_TIME': conv_final_gdf['START_TIME'].iloc[0],
+                            'END_TIME': conv_final_gdf['END_TIME'].iloc[0]}
+
+    ## Find which counties & zipcodes are affected by convective storms in the next 8 days
+    conv_county_membership = get_storm_table(conv_final_gdf,county_centroids,county_cols_to_keep)
+    conv_zip_membership = get_storm_table(conv_final_gdf,zip_code_centroids,zip_cols_to_keep)
+    print('County and zipcode convective storm membership table created')
+
+    ## Merge storm categories into blocks
+    conv_county_membership = pd.merge(conv_county_membership, conv_cat_map, how='left', on='event_index')
+    conv_zip_membership = pd.merge(conv_zip_membership, conv_cat_map, how='left', on='event_index')
+    print('Category merged into membership using event_index')
+
+    ## Write out the impact level for blocks
+    conv_county_membership = add_issue_times(conv_county_membership,conv_issue_time_dict)
+
+    conv_county_file_name_arch = 'data_archive/convective_storm_county_issue_' + str(run_time) + '.csv'
+    conv_county_membership.to_csv(conv_county_file_name_arch, index=False)
+
+    conv_zip_membership = add_issue_times(conv_zip_membership,conv_issue_time_dict)
+
+    conv_zip_file_name_arch = 'data_archive/convective_storm_zipcode_issue_' + str(run_time) + '.csv'
+    conv_zip_membership.to_csv(conv_zip_file_name_arch, index=False)
+    print('county and zipcode convective storm membership written out')
+
+
+
+wint_archive_dict = load_files_to_dict_list(wint_shapes_file_names,directory_path)
+wint_archive_dict.keys()
+
+for wint_final_gdf_name in wint_archive_dict:
+    #wint_final_gdf_name = 'winter_storm_shapes_issue_202401280600'
+    wint_final_gdf_reduced = wint_archive_dict[wint_final_gdf_name]
+    run_time = wint_final_gdf_name.split('issue_')[1]
+    
+    if 'ISSUE_TIME' not in wint_final_gdf_reduced.columns:
+        print('delete')
+        print(wint_final_gdf_name)
+        os.remove('data_archive/winter_storm_shapes_issue_' + run_time + '.geojson')
+        os.remove('data_archive/winter_storm_county_issue_' + run_time + '.csv') if os.path.isfile('data_archive/winter_storm_county_issue_' + run_time + '.csv') else print('county file not found')
+        os.remove('data_archive/winter_storm_zipcode_issue_' + run_time + '.csv') if os.path.isfile('data_archive/winter_storm_zipcode_issue_' + run_time + '.csv') else print('zipcode file not found')
+        print('files deleted')
+        continue
+    
+    wint_issue_time_dict = {'ISSUE_TIME': wint_final_gdf_reduced['ISSUE_TIME'].iloc[0],
+                            'START_TIME': wint_final_gdf_reduced['START_TIME'].iloc[0],
+                            'END_TIME': wint_final_gdf_reduced['END_TIME'].iloc[0]}
+
+
+    ## Find which counties & zipcodes are affected by convective storms in the next 8 days
+    wint_county_membership = get_storm_table(wint_final_gdf_reduced,county_centroids,county_cols_to_keep)
+    wint_zip_membership = get_storm_table(wint_final_gdf_reduced,zip_code_centroids,zip_cols_to_keep)
+    print('Find which counties & zipcodes are affected by convective storms in the next 3 days')
+
+
+    wint_county_membership = pd.merge(wint_county_membership,wint_cat_map,how='left',on='event_index')
+    wint_county_membership = add_issue_times(wint_county_membership,wint_issue_time_dict)
+    print('save latest county membership')
+
+    wint_county_file_name_arch = 'data_archive/winter_storm_county_issue_' + str(run_time) + '.csv'
+    wint_county_membership.to_csv(wint_county_file_name_arch, index=False)
+    print('save archive county membership')
+
+    wint_zip_membership = pd.merge(wint_zip_membership,wint_cat_map,how='left',on='event_index')
+    wint_zip_membership = add_issue_times(wint_zip_membership,wint_issue_time_dict)
+    print('save latest county membership')
+
+    wint_county_file_name_arch = 'data_archive/winter_storm_zipcode_issue_' + str(run_time) + '.csv'
+    wint_zip_membership.to_csv(wint_county_file_name_arch, index=False)
+    print('save archive county membership')
+
+    print('done')
