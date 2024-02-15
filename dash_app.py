@@ -425,9 +425,9 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
 
 
     if selected_granularity == 'zipcode':
-        merge_col = 'STD_ZIP5'
+        merge_col = ['STD_ZIP5','STUSPS']
     elif selected_granularity == 'county':
-        merge_col = 'NAMELSAD'
+        merge_col = ['NAMELSAD','STUSPS']
 
     merged_df = pd.merge(static_df, membership_df, how='left', on=merge_col)
     merged_df.fillna(0, inplace=True)
@@ -459,7 +459,7 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
 
     stored_data = {
         "records": filtered_df.to_dict('records'),
-        "columns": list(merged_df.columns)
+        "columns": list(filtered_df.columns)
     }
 
     return stored_data

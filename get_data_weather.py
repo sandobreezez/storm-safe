@@ -109,8 +109,8 @@ print('Convective storm shapes sorted by event index')
 # zip_cols_to_keep = ['STD_ZIP5','STUSPS','COUNTYNAME','geometry']
 
 ## Columns to keep
-county_cols_to_keep = ['NAMELSAD']
-zip_cols_to_keep = ['STD_ZIP5']
+county_cols_to_keep = ['NAMELSAD','STUSPS']
+zip_cols_to_keep = ['STD_ZIP5','STUSPS']
 print('County and zipcode to keep')
 
 ## Find which counties & zipcodes are affected by convective storms in the next 8 days
