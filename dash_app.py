@@ -455,8 +455,10 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
         # Extract latitude and longitude from the geometry
         filtered_df['LAT'] = filtered_df['geometry'].y
         filtered_df['LONG'] = filtered_df['geometry'].x
-    filtered_df = filtered_df.drop(columns=['geometry','event_index','ISSUE_TIME','START_TIME','END_TIME'], errors='ignore')
-
+    filtered_df = filtered_df.drop(columns=['geometry','event_index'], errors='ignore')
+    tail_cols_filtered_df = filtered_df.columns
+    filtered_df['peril'] = selected_peril
+    filtered_df = filtered_df[['peril'] + list(tail_cols_filtered_df)]
     stored_data = {
         "records": filtered_df.to_dict('records'),
         "columns": list(filtered_df.columns)
