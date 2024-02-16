@@ -83,20 +83,48 @@ wint_storm_expected_merge_ready = wint_storm_expected[['COUNTY','MY_PERIL_TOTAL_
 ## Convective Storm Event Index ##
 conv_cat_map0 = pd.DataFrame({'probability': [0],
                          'category': ['N/S']})
-conv_cat_map1 = pd.DataFrame({'event_index': np.arange(1,7)*.1,
+conv_cat_map1 = pd.DataFrame({'probability': np.arange(1,7)*.1,
                          'category': ['TSTM','MRGL','SLGT','ENH','MDT','HIGH']})
 conv_cat_map = pd.concat([conv_cat_map0,conv_cat_map1],ignore_index=True)
-conv_cat_map.to_csv('convective_storm_cat_map.csv',index=False)
+conv_cat_map_pivoted = conv_cat_map.set_index('category').T
 
 ## Winter Storm Index ##
 wint_cat_map0 = pd.DataFrame({'probability': [0],
                          'category': ['N/S']})
-wint_cat_map1 = pd.DataFrame({'event_index': np.arange(1,6)*.2,
+wint_cat_map1 = pd.DataFrame({'probability': np.arange(1,6)*.2,
                          'category': ['LIMITED','MINOR','MODERATE','MAJOR','EXTREME']})
 wint_cat_map = pd.concat([wint_cat_map0,wint_cat_map1],ignore_index=True)
-wint_cat_map.to_csv('winter_storm_cat_map.csv',index=False)
+wint_cat_map_pivoted = wint_cat_map.set_index('category').T
+
+df['weighted_sum'] = df.apply(compute_weighted_sum, axis=1, kwargs={'weight1': 0.5, 'weight2': 0.5})
+def factor_computation(row,category,country_wide_median,num_days_in_season=180,num_days_forecast=3):
+    numerator_edit_peril = (row['MY_PERIL_TOTAL_AFREQ']*(1 - num_days_forecast/num_days_in_season) +
+                            row[category] * 5) * row['MY_PERIL_WEIGHTED_AVG_HLRB']
+    denominator_edit_peril = row['MY_PERIL_TOTAL_AFREQ'] * row['MY_PERIL_WEIGHTED_AVG_HLRB']
+    constant_peril = row['OTHER_PERIL_TOTAL_AFREQ'] * row['OTHER_PERIL_WEIGHTED_AVG_HLRB']
+
+    return (numerator_edit_peril + constant_peril)/(denominator_edit_peril + constant_peril)
+
+def get_storm_factors(expected_data,category_probs,num_days_in_season=180,num_days_forecast=3):
+    category_probs_pivot = category_probs.set_index('category').T # transpose
+    storm_factors = conv_storm_expected_merge_ready.assign(**category_probs_pivot.iloc[0].to_dict()) # add values from category_probs_pivot
+    country_wide_median = storm_factors['MY_PERIL_TOTAL_AFREQ'].median()
+
+    for category in list(category_probs['category']):
+        storm_factors[category+'_fac'] = storm_factors.apply(factor_computation,axis=1,category=category,country_wide_median=country_wide_median)
+
+    return storm_factors
+
+test = get_storm_factors(conv_storm_expected_merge_ready,conv_cat_map)
+
+conv_cat_map['dummy'] = 'A'
+other_df.assign(**correct_pivot_df.iloc[0].to_dict())
+
+conv_storm_expected_merge_ready
 
 
+conv_storm_expectedconv_storm_expected_merge_ready.rename(columns={'MY_PERIL_TOTAL_AFREQ':'CONV_AFREQ','OTHER_PERIL_TOTAL_AFREQ':'OTHR_AFREQ',
+                                                'MY_PERIL_WEIGHTED_AVG_HLRB':'CONV_HLRB','OTHER_PERIL_TOTAL_HLRB':'OTHR_HLRB'})
 
 test2 = combine_perils_for_metric(fema_county_data,convective_storm_preffixes,annualized_frequency_suffix,'EALT')
 test['MY_PERIL_WEIGHTED_METRIC'].max()
