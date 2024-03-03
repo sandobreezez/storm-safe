@@ -37,7 +37,6 @@ def load_files_to_dict_list(file_list,directory=''):
             loaded_file_dict[key] = gpd.read_file(file_path)
     return loaded_file_dict
 
-#print(load_files_to_dict_list(latest_to_load))
 static_data_directory = ''
 static_data_file_names = ['county_centroids.geojson','zipcode_centroids.geojson']
 static_data_dict = load_files_to_dict_list(static_data_file_names)
@@ -85,7 +84,7 @@ min_issue_time_to_keep = int(format_date_time_obj_to_str(format_date_time_obj(ma
 # If we are only running the archive once a day then we could just index [1:7]
 pull_times = [dt for dt in pull_times_all[1:] if dt >= min_issue_time_to_keep]
 # This would account for failed runs
-# In the future we should have a way to just save the latest issue time for any given day
+# In the future we could have a way to just save the latest issue time for any given day
 print(pull_times)
 
 pull_times_highlights = [202304011630,202303310100]
@@ -118,8 +117,6 @@ data_dictionary = {}
 data_dictionary['Latest'] = latest_dict
 data_dictionary['Archive'] = archive_dict
 data_dictionary['Highlights'] = hightlight_dict
-print(static_data_dict['zipcode_centroids'])
-print(data_dictionary['Latest']['winter_storm_zipcode'])
 
 pd.merge(static_data_dict['zipcode_centroids'],data_dictionary['Latest']['winter_storm_zipcode'],on='STD_ZIP5',how='left')
 
@@ -485,9 +482,7 @@ def download_data(n_clicks, selected_peril, selected_category, selected_granular
     csv_string = generate_csv(df)
     cat_map = cat_map_dict[selected_peril]
     selected_category_string = cat_map[cat_map['event_index'] == selected_category]['category'].iloc[0]
-    print(selected_category_string)
     file_name_strings = [selected_peril,selected_category_string,selected_granularity,'issue',issue_time]
-    print(file_name_strings)
     file_name = '_'.join(file_name_strings) + '.csv'
 
     return dict(content=csv_string, filename=file_name)
