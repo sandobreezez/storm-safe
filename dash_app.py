@@ -188,7 +188,7 @@ app = dash.Dash(__name__)
 
 # Define the layout of the app
 app.layout = html.Div([
-    html.Label(id='app_title', children='Real-time Moratorium Automation', style={'fontWeight': 'bold','fontSize': '32px','justifyContent': 'center'}),
+    html.Label(id='app_title', children='Short the Weather: Real-time Moratorium Automation', style={'fontWeight': 'bold','fontSize': '32px','justifyContent': 'center'}),
     html.Br(),
     html.Br(),
     html.Div([
