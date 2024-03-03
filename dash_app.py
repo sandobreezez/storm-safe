@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import os
 from math import ceil, floor
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Load Cat map
 conv_cat_map = pd.read_csv('convective_storm_cat_map.csv')
@@ -18,6 +18,10 @@ wint_cat_map = pd.read_csv('winter_storm_cat_map.csv')
 # Remove N/A category
 conv_cat_map = conv_cat_map[conv_cat_map['event_index'] > 0]
 wint_cat_map = wint_cat_map[wint_cat_map['event_index'] > 0]
+
+cat_map_dict = {}
+cat_map_dict['convective_storm'] = conv_cat_map
+cat_map_dict['winter_storm'] = wint_cat_map
 
 def load_files_to_dict_list(file_list,directory=''):
     loaded_file_dict = {}
@@ -37,12 +41,10 @@ def load_files_to_dict_list(file_list,directory=''):
 static_data_directory = ''
 static_data_file_names = ['county_centroids.geojson','zipcode_centroids.geojson']
 static_data_dict = load_files_to_dict_list(static_data_file_names)
-print(static_data_dict)
+
 static_data_dict['county_centroids'] = static_data_dict['county_centroids'][['NAMELSAD','STUSPS','geometry']]
 static_data_dict['zipcode_centroids'] = static_data_dict['zipcode_centroids'][['STD_ZIP5','STUSPS','COUNTYNAME','geometry']]
 
-# county_cols_to_keep = ['NAMELSAD','STUSPS','geometry']
-# zip_cols_to_keep = ['STD_ZIP5','STUSPS','COUNTYNAME','geometry']
 
 latest_to_load = ['convective_storm_shapes.geojson','winter_storm_shapes.geojson','convective_storm_county.csv',
                  'winter_storm_county.csv','convective_storm_zipcode.csv','winter_storm_zipcode.csv']
@@ -53,10 +55,10 @@ directory_path = 'data_archive'
 entries = os.listdir(directory_path)
 # Filter out directories, keep only files
 file_names = [entry for entry in entries if os.path.isfile(os.path.join(directory_path, entry))]
-print(file_names)
+
 
 # Extracting the desired parts
-pull_times = []
+pull_times_all = []
 for file_name in file_names:
     # Splitting at "issue_" and taking the second part
     part_after_issue = file_name.split('issue_')[1]
@@ -64,72 +66,63 @@ for file_name in file_names:
     # Splitting at ".geojson" and taking the first part
     desired_part = part_after_issue.split('.')[0]
 
-    pull_times.append(desired_part)
+    pull_times_all.append(desired_part)
 
 
-pull_times = sorted(list(set(pull_times)),reverse=True)
-pull_times = [int(x) for x in pull_times]
+pull_times_all = sorted(list(set(pull_times_all)),reverse=True)
+pull_times_all = [int(x) for x in pull_times_all]
 
-max_issue_time_to_keep = max(pull_times)
+def format_date_time_obj(dt):
+    return datetime.strptime(str(dt),'%Y%m%d%H%M') # Convert integer to string and parse it into a datetime object
+
+def format_date_time_obj_to_str(dt_obj):
+    return dt_obj.strftime('%Y%m%d%H%M')
+
+max_issue_time_to_keep = max(pull_times_all[1:])
 ## Fix: The below code, should keep last 30 days
 ## min_issue_time_to_keep = floor(max(pull_times) / 1000000)*1000000
-
-## pull_times = [x for x in pull_times_all if x > min_issue_time_to_keep]
+min_issue_time_to_keep = int(format_date_time_obj_to_str(format_date_time_obj(max_issue_time_to_keep) - timedelta(days=7)))
+# If we are only running the archive once a day then we could just index [1:7]
+pull_times = [dt for dt in pull_times_all[1:] if dt >= min_issue_time_to_keep]
+# This would account for failed runs
+# In the future we should have a way to just save the latest issue time for any given day
 print(pull_times)
 
-archive_dropdown_options = []
-for dt in pull_times:
-    dt = str(dt)
-    # Convert integer to string and parse it into a datetime object
-    dt_obj = datetime.strptime(dt, '%Y%m%d%H%M')
+pull_times_highlights = [202304011630,202303310100]
 
-    # Format the datetime object into the desired string format for the label
-    formatted_date = dt_obj.strftime('%Y-%m-%d UTC %H:%M')
+def format_date_time_display(dt):
+    dt_obj = format_date_time_obj(dt) # Convert integer to string and parse it into a datetime object
+    formatted_date = dt_obj.strftime('%Y-%m-%d UTC %H:%M') # Format the datetime object into the desired string format for the label
+    return formatted_date
 
-    # Append as a dictionary to the list
-    archive_dropdown_options.append({'label': formatted_date, 'value': dt})
+def build_archive_dropdown_dict(dt_list):
+    archive_dropdown_options = []
+    for dt in dt_list:
+        formatted_date = format_date_time_display(dt) # Format date time
+        # Append as a dictionary to the list
+        archive_dropdown_options.append({'label': formatted_date, 'value': dt})
+    return archive_dropdown_options
 
+archive_dropdown_options = build_archive_dropdown_dict(pull_times)
+highlight_dropdown_options = build_archive_dropdown_dict(pull_times_highlights)
 archive_to_load = [file_name for file_name in file_names if any(str(time) in file_name for time in pull_times)]
+highlight_to_load = [file_name for file_name in file_names if any(str(time) in file_name for time in pull_times_highlights)]
 
 # Dictionary to store the GeoDataFrames
 archive_directory = 'data_archive/'
 archive_dict = load_files_to_dict_list(archive_to_load,archive_directory)
-
-
-# archive_dict['convective_storm_county_issue_202401290600'].drop(columns=['geometry','STUSPS']).columns
-# for key in archive_dict:
-#     if 'zipcode' in key:
-#         archive_dict[key].drop(columns=['geometry','STUSPS','COUNTYNAME']).to_csv(archive_directory + key + '.csv',index=False)
-#     elif 'county' in key:
-#         archive_dict[key].drop(columns=['geometry', 'STUSPS']).to_csv(archive_directory + key + '.csv',index=False)
-
-
-## test_gdf = gpd.read_file('data_archive/convective_storm_county_issue_202401280600.geojson')
+hightlight_dict = load_files_to_dict_list(highlight_to_load,archive_directory)
 
 
 data_dictionary = {}
 data_dictionary['Latest'] = latest_dict
 data_dictionary['Archive'] = archive_dict
+data_dictionary['Highlights'] = hightlight_dict
 print(static_data_dict['zipcode_centroids'])
 print(data_dictionary['Latest']['winter_storm_zipcode'])
 
 pd.merge(static_data_dict['zipcode_centroids'],data_dictionary['Latest']['winter_storm_zipcode'],on='STD_ZIP5',how='left')
-# def create_plotly_figure(gdf):
-#     # Assuming the geometry column has been converted to 'LAT' and 'LONG'
-#     fig = px.scatter_geo(
-#         gdf,
-#         lat='LAT',
-#         lon='LONG',
-#         scope='usa',  # Set the scope to the USA
-#         # Add more styling and data parameters as needed
-#     )
-#     fig.update_layout(
-#         margin={"r":0,"t":0,"l":0,"b":0},
-#         geo=dict(
-#             landcolor='rgb(217, 217, 217)',
-#         )
-#     )
-#     return fig
+
 
 wint_storm_discr_color_map = {
     'LIMITED': '#1E90FF',  # Darker blue
@@ -152,9 +145,9 @@ color_map_dict['convective_storm'] = conv_storm_discr_color_map
 color_map_dict['winter_storm'] = wint_storm_discr_color_map
 
 # Assuming gdf is your GeoDataFrame sorted by severity (more severe last)
-def create_plotly_figure(gdf, color_discrete_map):
+def create_plotly_figure(gdf, color_discrete_map,title):
     fig = px.choropleth_mapbox(
-        gdf,
+        gdf.drop(columns='geometry'),
         geojson=gdf.geometry,
         locations=gdf.index,
         color='category',
@@ -162,12 +155,12 @@ def create_plotly_figure(gdf, color_discrete_map):
         mapbox_style="open-street-map",  # Use OpenStreetMap style
         zoom=3,
         center={"lat": 37.0902, "lon": -95.7129},
-        opacity=0.7,
+        opacity=0.6,
     )
 
     fig.update_layout(
         title={
-            'text': "Storm Severity Map",
+            'text': title,
             'y': 0.98,
             'x': 0.5,
             'xanchor': 'center',
@@ -241,7 +234,8 @@ app.layout = html.Div([
                 id='latest_or_archive_select',
                 options=[
                     {'label': 'Latest', 'value': 'Latest'},
-                    {'label': 'Archive', 'value': 'Archive'}
+                    {'label': 'Archive', 'value': 'Archive'},
+                    {'label': 'Highlights', 'value': 'Highlights'}
                 ],
                 value='Latest',
                 labelStyle={'display': 'block', 'margin': '6px 0'},
@@ -253,7 +247,7 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id='archive_dropdown',
                     options=archive_dropdown_options,
-                    value=str(max_issue_time_to_keep)
+                    value=[]
                 )
             ], id='archive_dropdown_container', style={'display': 'none', 'width' : '100%'})
         ], style={'display': 'inline-block', 'margin-left': '20px', 'verticalAlign': 'top','width':'250px'}),
@@ -303,12 +297,8 @@ app.layout = html.Div([
     Input('peril_select', 'value')
 )
 def update_categories(selected_peril):
-    if selected_peril == "convective_storm":
-        options = [{'label': cat, 'value': i + 1} for i,cat in enumerate(conv_cat_map['category'].tolist())]
-    elif selected_peril == "winter_storm":
-        options = [{'label': cat, 'value': i + 1} for i,cat in enumerate(wint_cat_map['category'].tolist())]
-    else:
-        options = []
+    cat_map = cat_map_dict[selected_peril]
+    options = [{'label': cat, 'value': i + 1} for i,cat in enumerate(cat_map['category'].tolist())]
     return options
 
 @app.callback(
@@ -323,15 +313,19 @@ def update_category_selection(category_options):
     else:
         return None
 
-@app.callback(
+@app.callback([
     Output('archive_dropdown_container', 'style'),
-    Input('latest_or_archive_select', 'value')
+    Output('archive_dropdown', 'options'),
+    Output('archive_dropdown', 'value')],
+    [Input('latest_or_archive_select', 'value')]
 )
 def toggle_dropdown(selected_value):
     if selected_value == 'Archive':
-        return {'display': 'block'}
+        return {'display': 'block'}, archive_dropdown_options, archive_dropdown_options[0]['value']
+    elif selected_value == 'Highlights':
+        return {'display': 'block'}, highlight_dropdown_options, highlight_dropdown_options[0]['value']
     else:
-        return {'display': 'none'}
+        return {'display': 'none'}, [], []
 
 @app.callback(
     Output('issue_time_display', 'children'),
@@ -340,18 +334,16 @@ def toggle_dropdown(selected_value):
      Input('archive_dropdown','value')]
 )
 def update_issue_time_display(selected_peril,latest_or_archive,selected_archive):
-    archive_value = '_issue_' + selected_archive if latest_or_archive == 'Archive' else ''
-    print(archive_value)
-    gdf_filename = selected_peril + '_shapes' + archive_value
-    print(gdf_filename)
-    gdf = data_dictionary[latest_or_archive][gdf_filename]
+    archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
+    gdf_shape_filename = selected_peril + '_shapes' + archive_value
+    gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
 
 
-    if gdf_filename in data_dictionary[latest_or_archive].keys():
-        gdf = data_dictionary[latest_or_archive][gdf_filename]
-        issue_time = str(gdf['ISSUE_TIME'].iloc[0])
-        start_time = str(gdf['START_TIME'].iloc[0])
-        end_time = str(gdf['END_TIME'].iloc[0])
+    if gdf_shape_filename in data_dictionary[latest_or_archive].keys():
+        gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
+        issue_time = format_date_time_display(gdf['ISSUE_TIME'].iloc[0])
+        start_time = format_date_time_display(gdf['START_TIME'].iloc[0])
+        end_time = format_date_time_display(gdf['END_TIME'].iloc[0])
     else:
         issue_time = 'N/A'
         start_time = 'N/A'
@@ -370,13 +362,9 @@ def update_issue_time_display(selected_peril,latest_or_archive,selected_archive)
      Input('archive_dropdown','value')]
 )
 
-def update_plot(selected_peril, selected_category,latest_or_archive,selected_archive):
-    # Use the appropriate GeoDataFrame based on the selected peril
-    #if latest_or_archive == 'Latest' | type(selected_archive) != 'NoneType':
-    archive_value = '_issue_' + selected_archive if latest_or_archive == 'Archive' else ''
+def update_plot(selected_peril, selected_category, latest_or_archive, selected_archive):
+    archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
     gdf_filename = selected_peril + '_shapes' + archive_value
-
-    #color_map = conv_storm_discr_color_map if selected_peril == 'convective_storm' else wint_storm_discr_color_map
 
     color_map = color_map_dict[selected_peril]
     if gdf_filename in data_dictionary[latest_or_archive].keys():
@@ -387,7 +375,8 @@ def update_plot(selected_peril, selected_category,latest_or_archive,selected_arc
         gdf = data_dictionary['Latest'][gdf_filename.split('_issue_')[0]].copy()
         gdf['geometry'] = [Polygon() for _ in range(len(gdf))]
 
-    fig = create_plotly_figure(gdf,color_map)
+    title = (selected_peril.replace("_", " ") + " severity index").title() # winter_storm --> Winter Storm Severity Index
+    fig = create_plotly_figure(gdf,color_map,title)
     return dcc.Graph(figure=fig)
 
 @app.callback(
@@ -400,25 +389,17 @@ def update_plot(selected_peril, selected_category,latest_or_archive,selected_arc
 )
 
 def update_table(selected_peril, selected_granularity, selected_category,latest_or_archive,selected_archive):
-    # Logic to filter data and return as a table
-    # You will need to implement the logic to filter the DataFrame based on the inputs
-    # and then format it as a table. Dash provides a DataTable component that can be useful here.
-    #current_max_index = float(input.category_select()) if input.category_select() is not None else float('inf')
-
     static_df_key = selected_granularity + '_centroids' ### grab either zipcode or county data
-    print(static_df_key)
     static_df = static_data_dict[static_df_key]
-    print(static_df)
-    archive_value = '_issue_' + selected_archive if latest_or_archive == 'Archive' else ''
-    #print(archive_value)
+
+    archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
     membership_filename = selected_peril + '_' + selected_granularity + archive_value
-    #print(membership_filename)
 
     if membership_filename in data_dictionary[latest_or_archive].keys():
         ## if we find the key then use that df
         membership_df = data_dictionary[latest_or_archive][membership_filename]
     else:
-        ## if we dont select the latest and 0 it out
+        ## if we dont find the key, select the latest and 0 it out
         membership_df = data_dictionary['Latest'][membership_filename.split('_issue_')[0]]
         membership_df['event_index'] = 0
         membership_df['category'] = 'N/A'
@@ -431,26 +412,8 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
 
     merged_df = pd.merge(static_df, membership_df, how='left', on=merge_col)
     merged_df.fillna(0, inplace=True)
-    ##color_map = conv_storm_discr_color_map if selected_peril == 'convective_storm' else wint_storm_discr_color_map
 
-    # print('filtered_data2')
-    # if selected_peril == "convective_storm":
-    #     if selected_granularity == 'county':
-    #         print('filtered_data3')
-    #         df = conv_county_memb
-    #     elif selected_granularity == 'zipcode':
-    #         df = conv_zip_memb
-    # elif selected_peril == "winter_storm":
-    #     print('filtered_data3')
-    #     if selected_granularity == 'county':
-    #         print('filtered_data3')
-    #         df = wint_county_memb
-    #     elif selected_granularity == 'zipcode':
-    #         df = wint_zip_memb
     filtered_df = merged_df[merged_df["event_index"] >= int(selected_category)].copy()
-    print(selected_category)
-    print('filtered_data4')
-    #print(current_max_index)
     if not filtered_df.empty and 'geometry' in filtered_df.columns:
         # Extract latitude and longitude from the geometry
         filtered_df['LAT'] = filtered_df['geometry'].y
@@ -492,20 +455,42 @@ def update_display_table(stored_data):
 
 @app.callback(
     Output("download-data", "data"),
-    Input("btn_csv", "n_clicks"),
+    [Input("btn_csv", "n_clicks"),
+     Input('peril_select', 'value'),
+     Input('category_select', 'value'),
+     Input('gran_select', 'value'),
+     Input('latest_or_archive_select', 'value'),
+     Input('archive_dropdown', 'value')],
     State('stored-data', 'data'),  # Retrieve the stored data
     prevent_initial_call=True
 )
-def download_data(n_clicks, stored_data):
+def download_data(n_clicks, selected_peril, selected_category, selected_granularity, latest_or_archive, selected_archive,stored_data):
+    archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
+    gdf_shape_filename = selected_peril + '_shapes' + archive_value
+    gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
+
+    if gdf_shape_filename in data_dictionary[latest_or_archive].keys():
+        gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
+        issue_time = format_date_time_display(gdf['ISSUE_TIME'].iloc[0])
+    else:
+        issue_time = 'N/A'
+
     if n_clicks is None or stored_data is None:
         raise dash.exceptions.PreventUpdate
 
     # Convert the stored data back to a DataFrame
-    df = pd.DataFrame.from_records(stored_data)
+    df = pd.DataFrame.from_records(stored_data['records'])
 
     # Generate CSV string from DataFrame
     csv_string = generate_csv(df)
-    return dict(content=csv_string, filename="filtered_data.csv")
+    cat_map = cat_map_dict[selected_peril]
+    selected_category_string = cat_map[cat_map['event_index'] == selected_category]['category'].iloc[0]
+    print(selected_category_string)
+    file_name_strings = [selected_peril,selected_category_string,selected_granularity,'issue',issue_time]
+    print(file_name_strings)
+    file_name = '_'.join(file_name_strings) + '.csv'
+
+    return dict(content=csv_string, filename=file_name)
 
 
 

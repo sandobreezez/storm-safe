@@ -6,7 +6,7 @@ fema_county_data = pd.read_csv('fema_data/NRI_Table_Counties.csv')
 
 
 winter_storm_preffixes = ['AVLN','CWAV','ISTM','WNTW'] # Avalanche, Cold Wave, Ice Storm, Winter Weather
-convective_storm_preffixes = ['HAIL','LTNG','SWND','TRND'] # Hail, Lighting, Strong Wind, Tornado
+convective_storm_preffixes = ['HAIL','SWND','TRND'] # Hail, Strong Wind, Tornado
 historical_loss_ratio_suffix = 'HLRB' # Historical Loss Ratio (Loss/Exposure) for buildings
 annualized_frequency_suffix = 'AFREQ' # Number of events / number of years
 
@@ -57,6 +57,7 @@ def combine_perils_for_metric(data,perils,start_index=43):
 
 conv_storm_expected = combine_perils_for_metric(fema_county_data,convective_storm_preffixes)
 wint_storm_expected = combine_perils_for_metric(fema_county_data,winter_storm_preffixes)
+tornado_expected = combine_perils_for_metric(fema_county_data,['TRND'])
 
 conv_county_membership = pd.read_csv('convective_storm_county.csv')
 wint_county_membership = pd.read_csv('winter_storm_county.csv')
@@ -75,10 +76,10 @@ set(list(conv_county_membership['NAMELSAD'].apply(split_last))) - set(list(conv_
 conv_county_membership['COUNTY'] = conv_county_membership['NAMELSAD'].apply(split_last)
 wint_county_membership['COUNTY'] = wint_county_membership['NAMELSAD'].apply(split_last)
 
+
 conv_storm_expected_merge_ready = conv_storm_expected[['COUNTY','MY_PERIL_TOTAL_AFREQ','OTHER_PERIL_TOTAL_AFREQ','MY_PERIL_WEIGHTED_AVG_HLRB','OTHER_PERIL_WEIGHTED_AVG_HLRB']]
 wint_storm_expected_merge_ready = wint_storm_expected[['COUNTY','MY_PERIL_TOTAL_AFREQ','OTHER_PERIL_TOTAL_AFREQ','MY_PERIL_WEIGHTED_AVG_HLRB','OTHER_PERIL_WEIGHTED_AVG_HLRB']]
-
-
+tornado_expected_merge_ready = tornado_expected[['COUNTY','MY_PERIL_TOTAL_AFREQ','OTHER_PERIL_TOTAL_AFREQ','MY_PERIL_WEIGHTED_AVG_HLRB','OTHER_PERIL_WEIGHTED_AVG_HLRB']]
 
 ## Convective Storm Event Index ##
 conv_cat_map0 = pd.DataFrame({'probability': [0],
@@ -98,8 +99,7 @@ wint_cat_map_pivoted = wint_cat_map.set_index('category').T
 
 df['weighted_sum'] = df.apply(compute_weighted_sum, axis=1, kwargs={'weight1': 0.5, 'weight2': 0.5})
 def factor_computation(row,category,country_wide_median,num_days_in_season=180,num_days_forecast=3):
-    numerator_edit_peril = (row['MY_PERIL_TOTAL_AFREQ']*(1 - num_days_forecast/num_days_in_season) +
-                            row[category] * 5) * row['MY_PERIL_WEIGHTED_AVG_HLRB']
+    numerator_edit_peril = (row['MY_PERIL_TOTAL_AFREQ']*(1 - num_days_forecast/num_days_in_season) + row[category]) * row['MY_PERIL_WEIGHTED_AVG_HLRB']
     denominator_edit_peril = row['MY_PERIL_TOTAL_AFREQ'] * row['MY_PERIL_WEIGHTED_AVG_HLRB']
     constant_peril = row['OTHER_PERIL_TOTAL_AFREQ'] * row['OTHER_PERIL_WEIGHTED_AVG_HLRB']
 
@@ -107,7 +107,7 @@ def factor_computation(row,category,country_wide_median,num_days_in_season=180,n
 
 def get_storm_factors(expected_data,category_probs,num_days_in_season=180,num_days_forecast=3):
     category_probs_pivot = category_probs.set_index('category').T # transpose
-    storm_factors = conv_storm_expected_merge_ready.assign(**category_probs_pivot.iloc[0].to_dict()) # add values from category_probs_pivot
+    storm_factors = expected_data.assign(**category_probs_pivot.iloc[0].to_dict()) # add values from category_probs_pivot
     country_wide_median = storm_factors['MY_PERIL_TOTAL_AFREQ'].median()
 
     for category in list(category_probs['category']):
@@ -115,7 +115,11 @@ def get_storm_factors(expected_data,category_probs,num_days_in_season=180,num_da
 
     return storm_factors
 
-test = get_storm_factors(conv_storm_expected_merge_ready,conv_cat_map)
+test = get_storm_factors(tornado_expected_merge_ready,conv_cat_map)
+keep_test_cols = [col for col in test.columns if '_fac' in col]
+test_tornado = get_storm_factors(tornado_expected_merge_ready,conv_cat_map)[keep_test_cols]
+
+test_conv = get_storm_factors(conv_storm_expected_merge_ready,conv_cat_map)[keep_test_cols]
 
 conv_cat_map['dummy'] = 'A'
 other_df.assign(**correct_pivot_df.iloc[0].to_dict())

@@ -1,0 +1,44 @@
+Tasks for app:
+
+-Make shapes mutually exclusive (get_data_weather.py)
+	-plan
+		Different procedures:
+			A.1. Starting from the most severe, cat[c-1] = cat[c] + cat[c-1] until shape 0 (reverse cumsum)
+				geopandas.Geoseries.union
+			A.2. For categories (0,c) that increase from 0 to c in severity, cat[i] = cat[i] - cat[i+1]
+				geopandas.Geoseries.difference
+			A.Analysis n - 1 shape sums and n - 1 shape subtractions = O(n)
+	-execute
+	-debug
+
+-Design a better archive
+	-think about it (requirements, constraints, effeciency)
+		Requirements:
+			-display only a few that we are interested in
+			-retain the other ones in storage
+		Constraints:
+			-same folder currently
+		
+		Ideas:
+			-Maybe have a list of shape files that we are interested in displaying in .txt file**
+			-Think about how the archive can be grabbed effeciently in the future
+	-plan
+	-execute
+	-debug
+
+-Create some checks for the double zip/county issue
+	-Count the number of county-state and zip-state combinations. This number should be same as the row count.
+		-maybe create a set for county-state and zip-state, and compare this row count to the overall
+		-there might be two counties of the same in a state.. who knows
+
+-Fix download button
+	-check is there are simpler ways to deal with within app data storage that are perhaps less involved
+
+-Automate daily update
+	-reload that wsgy file I think, after the data has been grabbed. Gotta check how this is done.
+
+-Small things:
+	-don't abbreviate convective categories
+	-format dates more cleanly (think about time, where should it be included)
+	-title for map should say convective or winter storm map
+	-change URL (maybe short-the-weather or weather-bear)
