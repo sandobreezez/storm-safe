@@ -13,7 +13,8 @@ from shapely.geometry import Point
 from shapely.geometry import LineString
 import alphashape
 
-
+if os.getenv('VIRTUAL_ENV') == None:
+    os.chdir('/home/sandobreezez/storm-safe/')
 ## Storm 'category' ordered by 'event_index'
 conv_cat_map = pd.read_csv('convective_storm_cat_map.csv')
 wint_cat_map = pd.read_csv('winter_storm_cat_map.csv')
