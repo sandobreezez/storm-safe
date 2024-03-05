@@ -1,8 +1,5 @@
 import dash
-from dash import Dash
-
-# ... other necessary imports ...
-from dash import html, dcc, Input, Output, State, callback, dash_table
+from dash import Dash, html, dcc, Input, Output, State, callback, dash_table
 import dash_extensions as de
 import geopandas as gpd
 import pandas as pd
@@ -23,7 +20,12 @@ cat_map_dict = {}
 cat_map_dict['convective_storm'] = conv_cat_map
 cat_map_dict['winter_storm'] = wint_cat_map
 
+merge_col_dict = {}
+merge_col_dict['zipcode'] = ['STD_ZIP5', 'STUSPS']
+merge_col_dict['county'] = ['NAMELSAD', 'STUSPS']
+
 def load_files_to_dict_list(file_list,directory=''):
+    # loads the files in the list provided and outputs a dictionary with the keys being the name of file (w/o the file suffix)
     loaded_file_dict = {}
     for file_name in file_list:
         file_path = directory + file_name
@@ -56,7 +58,7 @@ entries = os.listdir(directory_path)
 file_names = [entry for entry in entries if os.path.isfile(os.path.join(directory_path, entry))]
 
 
-# Extracting the desired parts
+# Used to create the dropdown menu
 pull_times_all = []
 for file_name in file_names:
     # Splitting at "issue_" and taking the second part
@@ -87,7 +89,7 @@ pull_times = [dt for dt in pull_times_all[1:] if dt >= min_issue_time_to_keep]
 # In the future we could have a way to just save the latest issue time for any given day
 print(pull_times)
 
-pull_times_highlights = [202304011630,202303310100]
+pull_times_highlights = [202403030000,202304011630,202303310100]
 
 def format_date_time_display(dt):
     dt_obj = format_date_time_obj(dt) # Convert integer to string and parse it into a datetime object
@@ -141,8 +143,9 @@ color_map_dict = {}
 color_map_dict['convective_storm'] = conv_storm_discr_color_map
 color_map_dict['winter_storm'] = wint_storm_discr_color_map
 
-# Assuming gdf is your GeoDataFrame sorted by severity (more severe last)
-def create_plotly_figure(gdf, color_discrete_map,title):
+
+def create_plotly_figure(gdf, color_discrete_map, title):
+    # plot the weather data
     fig = px.choropleth_mapbox(
         gdf.drop(columns='geometry'),
         geojson=gdf.geometry,
@@ -303,8 +306,8 @@ def update_categories(selected_peril):
     Input('category_select', 'options')
 )
 
-## test github
 def update_category_selection(category_options):
+    # Automatically selects the first category when the category select radiobuttons change with peril
     if category_options != []:
         return 1
     else:
@@ -317,6 +320,7 @@ def update_category_selection(category_options):
     [Input('latest_or_archive_select', 'value')]
 )
 def toggle_dropdown(selected_value):
+    # produced the dropdown for the Archive only if Archive or Highlight is selected
     if selected_value == 'Archive':
         return {'display': 'block'}, archive_dropdown_options, archive_dropdown_options[0]['value']
     elif selected_value == 'Highlights':
@@ -331,6 +335,8 @@ def toggle_dropdown(selected_value):
      Input('archive_dropdown','value')]
 )
 def update_issue_time_display(selected_peril,latest_or_archive,selected_archive):
+    # Display the issue, start and end time for information being displayed
+    # start and end determine the bounds for validity for the forecast and issue is when it was produced
     archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
     gdf_shape_filename = selected_peril + '_shapes' + archive_value
     gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
@@ -360,6 +366,7 @@ def update_issue_time_display(selected_peril,latest_or_archive,selected_archive)
 )
 
 def update_plot(selected_peril, selected_category, latest_or_archive, selected_archive):
+    # creates the plot displayed in the app
     archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
     gdf_filename = selected_peril + '_shapes' + archive_value
 
@@ -386,6 +393,8 @@ def update_plot(selected_peril, selected_category, latest_or_archive, selected_a
 )
 
 def update_table(selected_peril, selected_granularity, selected_category,latest_or_archive,selected_archive):
+    # Stores the affected counties/zipcodes and their severity levels in a stored-data item
+    # This can be accessed to display the table and to download its contents
     static_df_key = selected_granularity + '_centroids' ### grab either zipcode or county data
     static_df = static_data_dict[static_df_key]
 
@@ -401,11 +410,11 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
         membership_df['event_index'] = 0
         membership_df['category'] = 'N/A'
 
-
-    if selected_granularity == 'zipcode':
-        merge_col = ['STD_ZIP5','STUSPS']
-    elif selected_granularity == 'county':
-        merge_col = ['NAMELSAD','STUSPS']
+    merge_col = merge_col_dict[selected_granularity]
+    # if selected_granularity == 'zipcode':
+    #     merge_col = ['STD_ZIP5','STUSPS']
+    # elif selected_granularity == 'county':
+    #     merge_col = ['NAMELSAD','STUSPS']
 
     merged_df = pd.merge(static_df, membership_df, how='left', on=merge_col)
     merged_df.fillna(0, inplace=True)
@@ -419,9 +428,24 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
     tail_cols_filtered_df = filtered_df.columns
     filtered_df['peril'] = selected_peril
     filtered_df = filtered_df[['peril'] + list(tail_cols_filtered_df)]
+
+    gdf_shape_filename = selected_peril + '_shapes' + archive_value
+
+    if gdf_shape_filename in data_dictionary[latest_or_archive].keys():
+        gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
+        issue_time = format_date_time_display(gdf['ISSUE_TIME'].iloc[0])
+    else:
+        issue_time = 'N/A'
+
+    cat_map = cat_map_dict[selected_peril]
+    selected_category_string = cat_map[cat_map['event_index'] == selected_category]['category'].iloc[0]
+    file_name_strings = [selected_peril,selected_category_string,selected_granularity,'issue',issue_time]
+    file_name = '_'.join(file_name_strings) + '.csv'
+
     stored_data = {
         "records": filtered_df.to_dict('records'),
-        "columns": list(filtered_df.columns)
+        "columns": list(filtered_df.columns),
+        "filename": file_name
     }
 
     return stored_data
@@ -432,6 +456,7 @@ def update_table(selected_peril, selected_granularity, selected_category,latest_
 )
 
 def update_display_table(stored_data):
+    # creates the table displayed in app
     if not stored_data or 'records' not in stored_data or 'columns' not in stored_data:
         return dash_table.DataTable()
 
@@ -452,26 +477,12 @@ def update_display_table(stored_data):
 
 @app.callback(
     Output("download-data", "data"),
-    [Input("btn_csv", "n_clicks"),
-     Input('peril_select', 'value'),
-     Input('category_select', 'value'),
-     Input('gran_select', 'value'),
-     Input('latest_or_archive_select', 'value'),
-     Input('archive_dropdown', 'value')],
+    Input("btn_csv", "n_clicks"),
     State('stored-data', 'data'),  # Retrieve the stored data
     prevent_initial_call=True
 )
-def download_data(n_clicks, selected_peril, selected_category, selected_granularity, latest_or_archive, selected_archive,stored_data):
-    archive_value = '_issue_' + str(selected_archive) if latest_or_archive in ['Archive','Highlights'] else ''
-    gdf_shape_filename = selected_peril + '_shapes' + archive_value
-    gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
-
-    if gdf_shape_filename in data_dictionary[latest_or_archive].keys():
-        gdf = data_dictionary[latest_or_archive][gdf_shape_filename]
-        issue_time = format_date_time_display(gdf['ISSUE_TIME'].iloc[0])
-    else:
-        issue_time = 'N/A'
-
+def download_data(n_clicks,stored_data):
+    # downloads the table (csv)
     if n_clicks is None or stored_data is None:
         raise dash.exceptions.PreventUpdate
 
@@ -480,11 +491,7 @@ def download_data(n_clicks, selected_peril, selected_category, selected_granular
 
     # Generate CSV string from DataFrame
     csv_string = generate_csv(df)
-    cat_map = cat_map_dict[selected_peril]
-    selected_category_string = cat_map[cat_map['event_index'] == selected_category]['category'].iloc[0]
-    file_name_strings = [selected_peril,selected_category_string,selected_granularity,'issue',issue_time]
-    file_name = '_'.join(file_name_strings) + '.csv'
-
+    file_name = stored_data['filename']
     return dict(content=csv_string, filename=file_name)
 
 
